@@ -644,8 +644,6 @@ def save_img(
         pad_inches=0,
     )
     plt.close()
-
-    # Create and save the pupil image with its circle
     plt.figure(figsize=(5, 5))
     pupil_circle = plt.Circle(
         center, pupil_radius, color="green", fill=False, linewidth=2
@@ -663,7 +661,6 @@ def save_img(
     )
     plt.close()
 
-    # Create and save the extracted iris part image
     plt.figure(figsize=(5, 5))
     plt.imshow(iris_part_img, cmap="gray")
     plt.axis("off")
@@ -768,6 +765,7 @@ def create_mask(size, mask_type, angle_deg, y_start, y_end):
     """
     height, width = size
     mask = np.zeros((height, width), dtype=bool)
+
     theta = np.linspace(0.0, 360.0, width, endpoint=False)
 
     def circ_diff(t, centre):
@@ -788,18 +786,72 @@ def create_mask(size, mask_type, angle_deg, y_start, y_end):
     return mask
 
 
-def plot_8bands_with_collapse(
-    image: np.ndarray, mask: np.ndarray, cmap: str = "gray", pad_value=np.nan
-):
-    """
-    Split 'image' into 8 equal-height bands, clean them with 'mask',
-    plot cleaned band + 1-row version, and return the results.
+def create_mask_bands(image, plot=False):
+    height, width = image.shape
+    print(f"Image dimensions: {height}x{width}")
 
-    Returns
-    -------
-    collapsed_rows        : list[np.ndarray]   (each 1  x w_i, original widths)
-    collapsed_padded_stack: np.ndarray shape (8, max_w)  (rows padded to same width)
-    """
+    full_mask = np.zeros((height, width), dtype=bool)
+    mask_regions = [
+        # ("Region 1", height // 2, height - 1, "bottom", 30),
+        # ("Region 2", height // 4, height // 2 - 1, "top_and_bottom", 226),
+        # ("Region 3", 0, height // 4 - 1, "top_and_bottom", 180),
+        ("Region 1", 0, height // 2, "bottom", 30),
+        ("Region 2", height // 2, height // 4 * 3, "top_and_bottom", 226),
+        ("Region 3", height // 4 * 3, height, "top_and_bottom", 180),
+    ]
+
+    for i, (region_name, y_start, y_end, mask_type, angle) in enumerate(
+        mask_regions, 1
+    ):
+        # print(
+        #     f"{region_name}: y from {y_start} to {y_end}, {mask_type} mask with angle={angle}"
+        # )
+        mask = create_mask((height, width), mask_type, angle, y_start, y_end)
+        full_mask = np.logical_or(full_mask, mask)
+
+    # Create masked image
+    masked_image = image * full_mask
+    return masked_image, full_mask
+
+
+def create_and_visualize_mask(image):
+    masked_image, full_mask = create_mask_bands(image)
+
+    # Create figure with subplots
+    plt.figure(figsize=(15, 5))
+
+    # Plot original image
+    plt.subplot(1, 3, 1)
+    plt.imshow(image, cmap="gray")
+    plt.title("Original Image")
+    plt.axis("off")
+
+    # Plot mask
+    plt.subplot(1, 3, 2)
+    plt.imshow(full_mask, cmap="gray")
+    plt.title("Mask")
+    plt.axis("off")
+
+    # Plot masked image
+    plt.subplot(1, 3, 3)
+    plt.imshow(masked_image, cmap="gray")
+    plt.title("Masked Image")
+    plt.axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+    # Print mask statistics
+    print(f"Mask shape: {full_mask.shape}")
+    print(f"Percentage of mask that is True: {np.mean(full_mask) * 100:.2f}%")
+
+    return masked_image, full_mask
+
+
+def bands_with_collapse(
+    image: np.ndarray, mask: np.ndarray, cmap: str = "gray", pad_value=np.nan, plot=True
+):
+
     if image.shape != mask.shape:
         raise ValueError("'image' and 'mask' must have identical shapes")
 
@@ -807,7 +859,10 @@ def plot_8bands_with_collapse(
     band_height = H // 8
     remainder = H % 8
 
-    fig, axes = plt.subplots(8, 2, figsize=(W / 80, H / 40), sharex=False, sharey=False)
+    if plot:
+        fig, axes = plt.subplots(
+            8, 2, figsize=(W / 80, H / 40), sharex=False, sharey=False
+        )
 
     collapsed_rows = []
 
@@ -825,20 +880,24 @@ def plot_8bands_with_collapse(
         collapsed = np.mean(band_clean, axis=0, keepdims=True)
         collapsed_rows.append(collapsed)
 
-        axes[i, 0].imshow(band_clean, cmap=cmap, aspect="auto")
-        axes[i, 0].axis("off")
-        axes[i, 0].set_title(f"Band {i+1} (clean)", fontsize=8)
+        if plot:
 
-        axes[i, 1].imshow(collapsed, cmap=cmap, aspect="auto", interpolation="nearest")
-        axes[i, 1].axis("off")
-        axes[i, 1].set_title(f"Band {i+1} (1 xW)", fontsize=8)
+            axes[i, 0].imshow(band_clean, cmap=cmap, aspect="auto")
+            axes[i, 0].axis("off")
+            axes[i, 0].set_title(f"Band {i+1} (clean)", fontsize=8)
+
+            axes[i, 1].imshow(
+                collapsed, cmap=cmap, aspect="auto", interpolation="nearest"
+            )
+            axes[i, 1].axis("off")
+            axes[i, 1].set_title(f"Band {i+1} (1 xW)", fontsize=8)
 
         y0 = y1
 
-    plt.tight_layout()
-    plt.show()
+    if plot:
+        plt.tight_layout()
+        plt.show()
 
-    # ---------- build padded stack ----------
     max_w = max(r.shape[1] for r in collapsed_rows)
     collapsed_padded_stack = np.full(
         (8, max_w), pad_value, dtype=collapsed_rows[0].dtype
@@ -891,7 +950,7 @@ def phase_to_2bits(phi):
         return "10"
 
 
-def gabor_decompose_row(row, num_coeffs=16, freq=None, sigma=None, ret_bits=True):
+def gabor_decompose_row(row, num_coeffs=16, freq=0.5 / 8, sigma=None, ret_bits=True):
     """
     Apply a bank of 'num_coeffs' Gabor wavelets to a 1-D signal.
 
@@ -985,3 +1044,56 @@ def plot_iris_code(iris_code, cmap="gray"):
     plt.axis("off")
     plt.tight_layout()
     plt.show()
+    return plt
+
+
+def image_to_iris_code(image, plot=False):
+    """
+    Convert an image to an iris code.
+
+    Parameters:
+        image (numpy.ndarray): Input image.
+
+    Returns:
+        numpy.ndarray: Iris code.
+    """
+    masked_image, mask = create_mask_bands(image)
+    rows_list, _ = bands_with_collapse(masked_image, mask, plot=plot)
+    iris_code = build_iris_code(rows_list)
+    return iris_code
+
+
+def compare_codes(code1, code2):
+    differences = code1 != code2
+    sum_diff = np.sum(differences)
+    print(f"Number of differences: {sum_diff} out of {code1.size} bits")
+    print(f"Percentage of differences: {sum_diff / code1.size * 100:.2f}%")
+
+    plt.figure(figsize=(15, 3))
+
+    plt.subplot(1, 3, 1)
+    plt.imshow(code1, cmap="gray", aspect="auto", interpolation="nearest")
+    plt.title("Left Iris Code")
+    plt.axis("off")
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(code2, cmap="gray", aspect="auto", interpolation="nearest")
+    plt.title("Right Iris Code")
+    plt.axis("off")
+
+    plt.subplot(1, 3, 3)
+    plt.imshow(differences, cmap="gray", aspect="auto", interpolation="nearest")
+    plt.title("Differences")
+    plt.axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(15, 3))
+    return plt
+
+
+def hamming_distance(code1, code2):
+    """Calculate the Hamming distance between two binary iris codes."""
+    differences = code1 != code2
+    return np.mean(differences)
