@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
+import copy
+from skimage.filters import gabor
+from skimage import img_as_float
+
 
 def get_sliding_windows(image, kernel_shape):
     """
@@ -849,63 +853,53 @@ def create_and_visualize_mask(image):
 
 
 def bands_with_collapse(
-    image: np.ndarray, mask: np.ndarray, cmap: str = "gray", pad_value=np.nan, plot=True
+    image: np.ndarray,
+    mask: np.ndarray,
+    cmap: str = "gray",
+    pad_value=np.nan,
+    plot: bool = True,
 ):
-
+    """
+    Split the unwrapped iris into 8 horizontal bands.
+    For every band:
+        • keep only the angular columns that are *valid* according to 'mask'
+        • compute the *median* (robust) across rows  → 1 × W_i vector
+        • return the vector *and* a boolean validity mask of the same length
+    """
     if image.shape != mask.shape:
         raise ValueError("'image' and 'mask' must have identical shapes")
 
     H, W = image.shape
-    band_height = H // 8
+    band_h = H // 8
     remainder = H % 8
 
-    if plot:
-        fig, axes = plt.subplots(
-            8, 2, figsize=(W / 80, H / 40), sharex=False, sharey=False
-        )
-
-    collapsed_rows = []
+    collapsed_rows: list[np.ndarray] = []
+    collapsed_valids: list[np.ndarray] = []
 
     y0 = 0
     for i in range(8):
-        h_i = band_height + (1 if i < remainder else 0)
+        h_i = band_h + (1 if i < remainder else 0)
         y1 = y0 + h_i
 
         band = image[y0:y1, :]
         band_mask = mask[y0:y1, :]
 
-        keep_cols = band_mask.any(axis=0)
-        band_clean = band[:, keep_cols]
+        keep_cols = band_mask.any(axis=0)  # 1 × W  → True where *any* row valid
+        band_clean = band[:, keep_cols]  # H_i × W_keep
+        if band_clean.size == 0:
+            # entire band masked – fill with NaNs so downstream code works
+            collapsed = np.full((1, 1), np.nan, dtype=np.float32)
+            valid_row = np.zeros_like(collapsed, dtype=bool)
+        else:
+            collapsed = np.median(band_clean, axis=0, keepdims=True)
+            valid_row = np.ones_like(collapsed, dtype=bool)
 
-        collapsed = np.mean(band_clean, axis=0, keepdims=True)
-        collapsed_rows.append(collapsed)
-
-        if plot:
-
-            axes[i, 0].imshow(band_clean, cmap=cmap, aspect="auto")
-            axes[i, 0].axis("off")
-            axes[i, 0].set_title(f"Band {i+1} (clean)", fontsize=8)
-
-            axes[i, 1].imshow(
-                collapsed, cmap=cmap, aspect="auto", interpolation="nearest"
-            )
-            axes[i, 1].axis("off")
-            axes[i, 1].set_title(f"Band {i+1} (1 xW)", fontsize=8)
+        collapsed_rows.append(collapsed.astype(np.float32))
+        collapsed_valids.append(valid_row)
 
         y0 = y1
 
-    if plot:
-        plt.tight_layout()
-        plt.show()
-
-    max_w = max(r.shape[1] for r in collapsed_rows)
-    collapsed_padded_stack = np.full(
-        (8, max_w), pad_value, dtype=collapsed_rows[0].dtype
-    )
-    for idx, row in enumerate(collapsed_rows):
-        collapsed_padded_stack[idx, : row.shape[1]] = row
-
-    return collapsed_rows, collapsed_padded_stack
+    return collapsed_rows, collapsed_valids
 
 
 def gabor_kernel(length, x0, sigma, freq):
@@ -950,10 +944,9 @@ def phase_to_2bits(phi):
         return "10"
 
 
-def gabor_decompose_row(row, num_coeffs=16, freq=0.5 / 8, sigma=None, ret_bits=True):
+def gabor_decompose_row(row, num_coeffs=16, freq=0.3 / 8, sigma=None, ret_bits=True):
     """
     Apply a bank of 'num_coeffs' Gabor wavelets to a 1-D signal.
-
     * Wavelets are centred at equally spaced positions x_k.
     * By default we couple sigma and f as  sigma = 1 / (2pi f)  (cf. book text).
 
@@ -973,26 +966,55 @@ def gabor_decompose_row(row, num_coeffs=16, freq=0.5 / 8, sigma=None, ret_bits=T
     coeffs     : numpy.ndarray  complex64 (num_coeffs,)     - c_k
     bit_codes  : list[str] length = num_coeffs (only if ret_bits)
     """
-    row = np.nan_to_num(row).ravel().astype(np.float32)  # shape (W,)
-
+    row = row.ravel().astype(np.float32)  # shape (N,)
     N = len(row)
+    if N == 0:
+        return (
+            (np.zeros(num_coeffs, np.complex64), ["00"] * num_coeffs)
+            if ret_bits
+            else np.zeros(num_coeffs)
+        )
+
+    # Calculate frequency if not provided
     if freq is None:
-        freq = num_coeffs / (2 * N)  # ≈ one period per two kernels
+        freq = num_coeffs / (2 * N)  # textbook choice
     if sigma is None:
         sigma = 1 / (2 * np.pi * freq)
 
-    # equally spaced centres: x0_k = (k + 0.5) * N / num_coeffs
+    # Ensure frequency is in valid range
+    if freq <= 0:
+        freq = 0.01
+    elif freq >= 0.5:
+        freq = 0.49
+
+    # Calculate sigma if not provided
+    if sigma is None:
+        sigma = 1 / (2 * np.pi * freq)
+
+    # Ensure sigma is positive
+    if sigma <= 0:
+        sigma = 0.5
+
+    # Calculate equally spaced centers
     centres = (np.arange(num_coeffs) + 0.5) * (N / num_coeffs)
 
     coeffs = np.empty(num_coeffs, dtype=np.complex64)
     for k, x0 in enumerate(centres):
-        g = gabor_kernel(N, x0, sigma, freq)  # length N
-        coeffs[k] = np.dot(row, g)  # <row,  G_k>
+        g = gabor_kernel(N, x0, sigma, freq)  # complex kernel, length N
+        # ------------- the real fix: ignore NaNs ------------------------
+        prod = row * np.conj(g)
+        coeffs[k] = np.nansum(prod)  # sums only finite entries
+        # ----------------------------------------------------------------
 
     if not ret_bits:
         return coeffs
 
-    bit_codes = [phase_to_2bits(np.angle(c)) for c in coeffs]
+    bit_codes = [
+        (
+            phase_to_2bits(np.angle(c)) if np.isfinite(c) else "00"
+        )  # all‑NaN → neutral code
+        for c in coeffs
+    ]
     return coeffs, bit_codes
 
 
@@ -1097,3 +1119,172 @@ def hamming_distance(code1, code2):
     """Calculate the Hamming distance between two binary iris codes."""
     differences = code1 != code2
     return np.mean(differences)
+
+
+################### PODEJSCIE 2 ###################
+
+
+def downsample_to_128(band):
+    h, w = band.shape[:2]
+    # 1) average across rows → shape (w,)
+    col_means = band.mean(axis=0)
+    # 2) compute group size (must divide evenly)
+    group_size = w // 128
+    # 3) reshape into (128, group_size) and average each
+    #    shape will be (128,)
+    out = col_means.reshape(128, group_size).mean(axis=1)
+    # 4) return as a 1×128 “image” if you need that shape
+    return out[np.newaxis, :]
+
+
+def image_to_iris_code_2(
+    input_image, plot=False, number_of_bands=8, plot_iris_code=False
+):
+    image_temp = copy.deepcopy(input_image)
+    rows_to_remove = image_temp.shape[0] - 440
+    cropped_image = image_temp[rows_to_remove:, :]
+
+    band_height = cropped_image.shape[0] // number_of_bands
+    bands = []
+    for i in range(number_of_bands):
+        start_row = i * band_height
+        end_row = (
+            (i + 1) * band_height
+            if i != number_of_bands - 1
+            else cropped_image.shape[0]
+        )
+        band = cropped_image[start_row:end_row, :]
+        bands.append(band)
+        # print(band.shape)
+
+    bands_specifications = {
+        # Bands 0-3: Top cutout 130, no bottom cutout
+        **{
+            str(i): {"top_cutout_width": 130, "bottom_cutout_width": 0}
+            for i in range(number_of_bands // 2)
+        },
+        # Bands 4-5: Top cutout 322, bottom cutout 320
+        **{
+            str(i): {"top_cutout_width": 322, "bottom_cutout_width": 320}
+            for i in range(number_of_bands // 2, number_of_bands // 2 * 3 // 4)
+        },
+        # Bands 6-7: Top cutout 386, bottom cutout 384
+        **{
+            str(i): {"top_cutout_width": 386, "bottom_cutout_width": 384}
+            for i in range(number_of_bands // 2 * 3 // 4, number_of_bands)
+        },
+    }
+
+    cropped_bands = []
+
+    for i in range(8):
+        top_cutout_width = bands_specifications[str(i)]["top_cutout_width"]
+        bottom_cutout_width = bands_specifications[str(i)]["bottom_cutout_width"]
+
+        band = copy.deepcopy(bands[i])
+
+        top_band = copy.deepcopy(band)[:, band.shape[1] // 2 :]
+        bottom_band = band[:, : band.shape[1] // 2].copy()
+
+        # print(
+        #     f"Original shapes - band: {band.shape}, top_band: {top_band.shape}, bottom_band: {bottom_band.shape}"
+        # )
+
+        top_center = top_band.shape[1] // 2
+        bottom_center = bottom_band.shape[1] // 2
+
+        if top_cutout_width > 0:
+            top_start = top_center - top_cutout_width // 2
+            top_end = top_center + top_cutout_width // 2
+            top_start = max(0, top_start)
+            top_end = min(top_band.shape[1], top_end)
+            top_band_cropped = np.delete(top_band, np.s_[top_start:top_end], axis=1)
+        else:
+            top_band_cropped = top_band
+
+        if bottom_cutout_width > 0:
+            bottom_start = bottom_center - bottom_cutout_width // 2
+            bottom_end = bottom_center + bottom_cutout_width // 2
+            bottom_start = max(0, bottom_start)
+            bottom_end = min(bottom_band.shape[1], bottom_end)
+            bottom_band_cropped = np.delete(
+                bottom_band, np.s_[bottom_start:bottom_end], axis=1
+            )
+        else:
+            bottom_band_cropped = bottom_band
+
+        # print(
+        #     f"Cropped shapes - top_band: {top_band_cropped.shape}, bottom_band: {bottom_band_cropped.shape}",
+        #     end=" ",
+        # )
+        combined_band = np.concatenate((bottom_band_cropped, top_band_cropped), axis=1)
+        # print(f"Combined band shape: {combined_band.shape}")
+        cropped_bands.append(combined_band.copy())
+
+    cropped_bands_rescaled = np.stack(
+        [downsample_to_128(b) for b in cropped_bands], axis=0
+    )
+
+    # fig, axes = plt.subplots(
+    #     nrows=8, ncols=3, figsize=(8, 16), gridspec_kw={"hspace": 0.05, "wspace": 0.05}
+    # )
+
+    # for i in range(8):
+    #     # original
+    #     ax = axes[i, 0]
+    #     ax.imshow(bands[i], cmap="gray", aspect="auto")
+    #     ax.axis("off")
+    #     ax.set_title(f"Band {i}: original", pad=2, fontsize=8)
+
+    #     # cropped
+    #     ax = axes[i, 1]
+    #     ax.imshow(cropped_bands[i], cmap="gray", aspect="auto")
+    #     ax.axis("off")
+    #     ax.set_title(f"Band {i}: cropped", pad=2, fontsize=8)
+
+    #     # rescaled (1×128)
+    #     ax = axes[i, 2]
+    #     ax.imshow(cropped_bands_rescaled[i], cmap="gray", aspect="auto")
+    #     ax.axis("off")
+    #     ax.set_title(f"Band {i}: rescaled", pad=2, fontsize=8)
+
+    # # 2) optionally tighten margins even more
+    # plt.subplots_adjust(top=0.98, bottom=0.02, left=0.02, right=0.98)
+    # plt.show()
+    cropped_bands_rescaled = np.array(cropped_bands_rescaled, dtype=float)
+    cropped_bands_rescaled = img_as_float(cropped_bands_rescaled)
+
+    iris_codes = []  # tu wpadnie 8 kodów, każdy jako tablica (128, 2)
+
+    # dobieramy częstotliwość falki Gabor: eksperymentuj z 0.2–0.5
+    frequency = 0.25
+
+    for band in cropped_bands_rescaled:
+        # band ma kształt (1, 128)
+        real_resp, imag_resp = gabor(band, frequency=frequency)
+
+        # spłaszczenie do wektora długości 128
+        real_line = real_resp.ravel()
+        imag_line = imag_resp.ravel()
+
+        # fazowa binar­yzacja → dwie kolumny: [real>0, imag>0]
+        code = np.zeros((real_line.size, 2), dtype=np.uint8)
+        code[:, 0] = (real_line > 0).astype(np.uint8)
+        code[:, 1] = (imag_line > 0).astype(np.uint8)
+
+        iris_codes.append(code)
+
+    iris_codes = np.array(iris_codes)
+    # wynik: (8, 128, 2) → każdy band to 128 par bitów (kod tęczówki)
+    # print("iris_codes shape:", iris_codes.shape)
+
+    # 1) swap the last two axes → shape (8, 2, 128)
+    tmp = iris_codes.transpose(0, 2, 1)
+
+    # 2) merge the first two axes → shape (16, 128)
+    iris_codes_2row = tmp.reshape(-1, tmp.shape[-1])
+
+    if plot_iris_code:
+        plt.figure(figsize=(16, 8))
+        plt.imshow(iris_codes_2row, cmap="gray", aspect="auto")
+    return iris_codes_2row
