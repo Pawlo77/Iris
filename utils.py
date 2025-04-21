@@ -6,8 +6,11 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
 import copy
+
 from skimage.filters import gabor
 from skimage import img_as_float
+
+gabor
 
 
 def get_sliding_windows(image, kernel_shape):
@@ -745,400 +748,59 @@ def save_imgs(imgs, iris_imgs, pupil_imgs, irises_parts, irises, pupils, labels)
         )
 
 
-def create_mask(size, mask_type, angle_deg, y_start, y_end):
-    """
-    Build a boolean mask for an unwrapped iris image (H x W).
-
-    Parameters
-    ----------
-    size       : tuple(int,int)   (height, width) of the image
-    mask_type  : "bottom" | "top_and_bottom"
-                 - "bottom" … keep everything except a wedge of 'angle_deg' °
-                   centred at the bottom (θ = 90°)
-                 - "top_and_bottom" … keep two side fragments whose *combined*
-                   angular width is 'angle_deg' °; i.e. remove equal wedges
-                   around θ = 90° (bottom) and θ = 270° (top)
-    angle_deg  : int   angle parameter in degrees (see above)
-    y_start,
-    y_end      : int   vertical span [y_start, y_end] (inclusive) to which
-                       the mask will be applied
-
-    Returns
-    -------
-    np.ndarray[bool]   mask of shape (height, width)
-    """
-    height, width = size
-    mask = np.zeros((height, width), dtype=bool)
-
-    theta = np.linspace(0.0, 360.0, width, endpoint=False)
-
-    def circ_diff(t, centre):
-        return np.abs(((t - centre + 180) % 360) - 180)
-
-    if mask_type == "bottom":
-        keep = circ_diff(theta, 90.0) >= (angle_deg / 2.0)
-
-    elif mask_type == "top_and_bottom":
-        half_wedge = (360.0 - angle_deg) / 4.0
-        keep_bottom = circ_diff(theta, 90.0) >= half_wedge
-        keep_top = circ_diff(theta, 270.0) >= half_wedge
-        keep = np.logical_and(keep_bottom, keep_top)
-    else:
-        raise ValueError("mask_type must be 'bottom' or 'top_and_bottom'.")
-
-    mask[y_start : y_end + 1, :] = keep[np.newaxis, :]
-    return mask
-
-
-def create_mask_bands(image, plot=False):
-    height, width = image.shape
-    print(f"Image dimensions: {height}x{width}")
-
-    full_mask = np.zeros((height, width), dtype=bool)
-    mask_regions = [
-        # ("Region 1", height // 2, height - 1, "bottom", 30),
-        # ("Region 2", height // 4, height // 2 - 1, "top_and_bottom", 226),
-        # ("Region 3", 0, height // 4 - 1, "top_and_bottom", 180),
-        ("Region 1", 0, height // 2, "bottom", 30),
-        ("Region 2", height // 2, height // 4 * 3, "top_and_bottom", 226),
-        ("Region 3", height // 4 * 3, height, "top_and_bottom", 180),
-    ]
-
-    for i, (region_name, y_start, y_end, mask_type, angle) in enumerate(
-        mask_regions, 1
-    ):
-        # print(
-        #     f"{region_name}: y from {y_start} to {y_end}, {mask_type} mask with angle={angle}"
-        # )
-        mask = create_mask((height, width), mask_type, angle, y_start, y_end)
-        full_mask = np.logical_or(full_mask, mask)
-
-    # Create masked image
-    masked_image = image * full_mask
-    return masked_image, full_mask
-
-
-def create_and_visualize_mask(image):
-    masked_image, full_mask = create_mask_bands(image)
-
-    # Create figure with subplots
-    plt.figure(figsize=(15, 5))
-
-    # Plot original image
-    plt.subplot(1, 3, 1)
-    plt.imshow(image, cmap="gray")
-    plt.title("Original Image")
-    plt.axis("off")
-
-    # Plot mask
-    plt.subplot(1, 3, 2)
-    plt.imshow(full_mask, cmap="gray")
-    plt.title("Mask")
-    plt.axis("off")
-
-    # Plot masked image
-    plt.subplot(1, 3, 3)
-    plt.imshow(masked_image, cmap="gray")
-    plt.title("Masked Image")
-    plt.axis("off")
-
-    plt.tight_layout()
-    plt.show()
-
-    # Print mask statistics
-    print(f"Mask shape: {full_mask.shape}")
-    print(f"Percentage of mask that is True: {np.mean(full_mask) * 100:.2f}%")
-
-    return masked_image, full_mask
-
-
-def bands_with_collapse(
-    image: np.ndarray,
-    mask: np.ndarray,
-    cmap: str = "gray",
-    pad_value=np.nan,
-    plot: bool = True,
-):
-    """
-    Split the unwrapped iris into 8 horizontal bands.
-    For every band:
-        • keep only the angular columns that are *valid* according to 'mask'
-        • compute the *median* (robust) across rows  → 1 × W_i vector
-        • return the vector *and* a boolean validity mask of the same length
-    """
-    if image.shape != mask.shape:
-        raise ValueError("'image' and 'mask' must have identical shapes")
-
-    H, W = image.shape
-    band_h = H // 8
-    remainder = H % 8
-
-    collapsed_rows: list[np.ndarray] = []
-    collapsed_valids: list[np.ndarray] = []
-
-    y0 = 0
-    for i in range(8):
-        h_i = band_h + (1 if i < remainder else 0)
-        y1 = y0 + h_i
-
-        band = image[y0:y1, :]
-        band_mask = mask[y0:y1, :]
-
-        keep_cols = band_mask.any(axis=0)  # 1 × W  → True where *any* row valid
-        band_clean = band[:, keep_cols]  # H_i × W_keep
-        if band_clean.size == 0:
-            # entire band masked – fill with NaNs so downstream code works
-            collapsed = np.full((1, 1), np.nan, dtype=np.float32)
-            valid_row = np.zeros_like(collapsed, dtype=bool)
-        else:
-            collapsed = np.median(band_clean, axis=0, keepdims=True)
-            valid_row = np.ones_like(collapsed, dtype=bool)
-
-        collapsed_rows.append(collapsed.astype(np.float32))
-        collapsed_valids.append(valid_row)
-
-        y0 = y1
-
-    return collapsed_rows, collapsed_valids
-
-
-def gabor_kernel(length, x0, sigma, freq):
-    """
-    Build a discrete 1-D complex Gabor wavelet
-
-        G(x) =  exp(-(x-x0)^2 / (2 sigma^2))  ·  exp(-i·2pi·freq·x)
-
-    Parameters
-    ----------
-    length : int      length of the signal the kernel will be applied to
-    x0     : float    centre position (can be fractional)
-    sigma  : float    Gaussian width                 (same units as x)
-    freq   : float    frequency in cycles / sample   (0 < freq < 0.5)
-
-    Returns
-    -------
-    numpy.ndarray  complex64, shape (length,)
-    """
-    x = np.arange(length, dtype=np.float32)
-    gauss = np.exp(-((x - x0) ** 2) / (2 * sigma**2))
-    sinus = np.exp(-1j * 2 * np.pi * freq * x)
-    return gauss * sinus
-
-
-def phase_to_2bits(phi):
-    """
-    Map a phase angle phi in (-pi, +pi] to the 2-bit code used by Daugman:
-
-        0 …  pi/2   → 00   (1st quadrant)
-        pi/2 …  pi   → 01   (2nd)
-       -pi   … -pi/2 → 11   (3rd)
-       -pi/2 …  0   → 10   (4th)
-    """
-    if 0.0 < phi <= np.pi / 2:
-        return "00"
-    elif np.pi / 2 < phi <= np.pi:
-        return "01"
-    elif -np.pi < phi <= -np.pi / 2:
-        return "11"
-    else:
-        return "10"
-
-
-def gabor_decompose_row(row, num_coeffs=16, freq=0.3 / 8, sigma=None, ret_bits=True):
-    """
-    Apply a bank of 'num_coeffs' Gabor wavelets to a 1-D signal.
-    * Wavelets are centred at equally spaced positions x_k.
-    * By default we couple sigma and f as  sigma = 1 / (2pi f)  (cf. book text).
-
-    Parameters
-    ----------
-    row        : 1-D numpy array (float or uint8)   - the input signal
-    num_coeffs : int                                - number of wavelets
-    freq       : float | None                       - common frequency f ;
-                  if None: f = num_coeffs / (2 · len(row))
-    sigma      : float | None                       - common width sigma ;
-                  if None: sigma = 1 / (2pi f)
-    ret_bits   : bool                               - if True return phase
-                                                     quantised to 2-bit codes
-
-    Returns
-    -------
-    coeffs     : numpy.ndarray  complex64 (num_coeffs,)     - c_k
-    bit_codes  : list[str] length = num_coeffs (only if ret_bits)
-    """
-    row = row.ravel().astype(np.float32)  # shape (N,)
-    N = len(row)
-    if N == 0:
-        return (
-            (np.zeros(num_coeffs, np.complex64), ["00"] * num_coeffs)
-            if ret_bits
-            else np.zeros(num_coeffs)
-        )
-
-    # Calculate frequency if not provided
-    if freq is None:
-        freq = num_coeffs / (2 * N)  # textbook choice
-    if sigma is None:
-        sigma = 1 / (2 * np.pi * freq)
-
-    # Ensure frequency is in valid range
-    if freq <= 0:
-        freq = 0.01
-    elif freq >= 0.5:
-        freq = 0.49
-
-    # Calculate sigma if not provided
-    if sigma is None:
-        sigma = 1 / (2 * np.pi * freq)
-
-    # Ensure sigma is positive
-    if sigma <= 0:
-        sigma = 0.5
-
-    # Calculate equally spaced centers
-    centres = (np.arange(num_coeffs) + 0.5) * (N / num_coeffs)
-
-    coeffs = np.empty(num_coeffs, dtype=np.complex64)
-    for k, x0 in enumerate(centres):
-        g = gabor_kernel(N, x0, sigma, freq)  # complex kernel, length N
-        # ------------- the real fix: ignore NaNs ------------------------
-        prod = row * np.conj(g)
-        coeffs[k] = np.nansum(prod)  # sums only finite entries
-        # ----------------------------------------------------------------
-
-    if not ret_bits:
-        return coeffs
-
-    bit_codes = [
-        (
-            phase_to_2bits(np.angle(c)) if np.isfinite(c) else "00"
-        )  # all‑NaN → neutral code
-        for c in coeffs
-    ]
-    return coeffs, bit_codes
-
-
-def gabor_decompose_row_bits(row, num_coeffs=128):
-    """Return only the 2-bit phase codes for a 1-D signal."""
-    row = np.nan_to_num(row).ravel().astype(np.float32)
-    N = len(row)
-    freq = num_coeffs / (2 * N)  # same coupling sigma ↔ f as before
-    sigma = 1 / (2 * np.pi * freq)
-
-    centres = (np.arange(num_coeffs) + 0.5) * (N / num_coeffs)
-    bit_codes = []
-
-    for x0 in centres:
-        g = gabor_kernel(N, x0, sigma, freq)
-        coef = np.dot(row, g)
-        bit_codes.append(phase_to_2bits(np.angle(coef)))
-
-    return bit_codes  # list of length = num_coeffs
-
-
-def build_iris_code(rows_list, num_coeffs=128):
-    """
-    Generate the 16 x 128 iris-code matrix from eight collapsed rows.
-    rows_list       - list with 8 elements, each shape (1, W_i)
-    Returns
-    -------
-    iris_code       - uint8 array, shape (16, 128), values 0/1
-    """
-    if len(rows_list) != 8:
-        raise ValueError("Expected exactly 8 collapsed rows (one per band).")
-
-    iris_code = np.zeros((16, num_coeffs), dtype=np.uint8)
-
-    for band_idx, row in enumerate(rows_list):
-        bits = gabor_decompose_row_bits(row, num_coeffs=num_coeffs)
-        for col_idx, code in enumerate(bits):
-            iris_code[2 * band_idx, col_idx] = int(code[0])
-            iris_code[2 * band_idx + 1, col_idx] = int(code[1])
-
-    return iris_code
-
-
-def plot_iris_code(iris_code, cmap="gray"):
-    """Visualise the 16  x 128 binary iris code."""
-    plt.figure(figsize=(6, 3))
-    plt.imshow(iris_code, cmap=cmap, aspect="auto", interpolation="nearest")
-    plt.title("Iris code (16  x 128 bits)")
-    plt.axis("off")
-    plt.tight_layout()
-    plt.show()
-    return plt
-
-
-def image_to_iris_code(image, plot=False):
-    """
-    Convert an image to an iris code.
-
-    Parameters:
-        image (numpy.ndarray): Input image.
-
-    Returns:
-        numpy.ndarray: Iris code.
-    """
-    masked_image, mask = create_mask_bands(image)
-    rows_list, _ = bands_with_collapse(masked_image, mask, plot=plot)
-    iris_code = build_iris_code(rows_list)
-    return iris_code
-
-
-def compare_codes(code1, code2):
-    differences = code1 != code2
-    sum_diff = np.sum(differences)
-    print(f"Number of differences: {sum_diff} out of {code1.size} bits")
-    print(f"Percentage of differences: {sum_diff / code1.size * 100:.2f}%")
-
-    plt.figure(figsize=(15, 3))
-
-    plt.subplot(1, 3, 1)
-    plt.imshow(code1, cmap="gray", aspect="auto", interpolation="nearest")
-    plt.title("Left Iris Code")
-    plt.axis("off")
-
-    plt.subplot(1, 3, 2)
-    plt.imshow(code2, cmap="gray", aspect="auto", interpolation="nearest")
-    plt.title("Right Iris Code")
-    plt.axis("off")
-
-    plt.subplot(1, 3, 3)
-    plt.imshow(differences, cmap="gray", aspect="auto", interpolation="nearest")
-    plt.title("Differences")
-    plt.axis("off")
-
-    plt.tight_layout()
-    plt.show()
-
-    plt.figure(figsize=(15, 3))
-    return plt
-
-
-def hamming_distance(code1, code2):
-    """Calculate the Hamming distance between two binary iris codes."""
-    differences = code1 != code2
-    return np.mean(differences)
-
-
-################### PODEJSCIE 2 ###################
-
-
 def downsample_to_128(band):
     h, w = band.shape[:2]
-    # 1) average across rows → shape (w,)
     col_means = band.mean(axis=0)
-    # 2) compute group size (must divide evenly)
     group_size = w // 128
-    # 3) reshape into (128, group_size) and average each
-    #    shape will be (128,)
     out = col_means.reshape(128, group_size).mean(axis=1)
-    # 4) return as a 1×128 “image” if you need that shape
     return out[np.newaxis, :]
 
 
+def gabor(band, frequency=1.0):
+    """
+    Apply Gabor filter to a 1D signal (band) with frequency as the only parameter.
+
+    Parameters:
+    -----------
+    band : numpy.ndarray
+        Input 1D array (or 2D array with shape (1, N))
+    frequency : float
+        Frequency of the sinusoidal component
+
+    Returns:
+    --------
+    real_resp : numpy.ndarray
+        Real part of the response
+    imag_resp : numpy.ndarray
+        Imaginary part of the response
+    """
+    if band.ndim > 1:  # Ensure band is 1D
+        band = band.ravel()
+
+    x = np.arange(band.size)
+    x_centered = x - band.size // 2
+    sigma = 1.0 / frequency
+
+    gauss = np.exp(-0.5 * (x_centered**2) / (sigma**2))
+
+    carrier_real = np.cos(2 * np.pi * frequency * x_centered)
+    carrier_imag = np.sin(2 * np.pi * frequency * x_centered)
+    kernel_real = gauss * carrier_real
+    kernel_imag = gauss * carrier_imag
+
+    kernel_real = kernel_real / np.sqrt(np.sum(kernel_real**2))
+    kernel_imag = kernel_imag / np.sqrt(np.sum(kernel_imag**2))
+    real_resp = np.convolve(band, kernel_real, mode="same")
+    imag_resp = np.convolve(band, kernel_imag, mode="same")
+
+    return real_resp, imag_resp
+
+
 def image_to_iris_code_2(
-    input_image, plot=False, number_of_bands=8, plot_iris_code=False
+    input_image,
+    number_of_bands=8,
+    plot_iris_code=False,
+    gabor_frequency=0.25,
 ):
     image_temp = copy.deepcopy(input_image)
     rows_to_remove = image_temp.shape[0] - 440
@@ -1155,21 +817,17 @@ def image_to_iris_code_2(
         )
         band = cropped_image[start_row:end_row, :]
         bands.append(band)
-        # print(band.shape)
 
-    bands_specifications = {
-        # Bands 0-3: Top cutout 130, no bottom cutout
-        **{
+    bands_specifications = {  # as in the book
+        **{  # Bands 0-3: Top cutout 130, no bottom cutout
             str(i): {"top_cutout_width": 130, "bottom_cutout_width": 0}
             for i in range(number_of_bands // 2)
         },
-        # Bands 4-5: Top cutout 322, bottom cutout 320
-        **{
+        **{  # Bands 4-5: Top cutout 322, bottom cutout 320
             str(i): {"top_cutout_width": 322, "bottom_cutout_width": 320}
             for i in range(number_of_bands // 2, number_of_bands // 2 * 3 // 4)
         },
-        # Bands 6-7: Top cutout 386, bottom cutout 384
-        **{
+        **{  # Bands 6-7: Top cutout 386, bottom cutout 384
             str(i): {"top_cutout_width": 386, "bottom_cutout_width": 384}
             for i in range(number_of_bands // 2 * 3 // 4, number_of_bands)
         },
@@ -1185,10 +843,6 @@ def image_to_iris_code_2(
 
         top_band = copy.deepcopy(band)[:, band.shape[1] // 2 :]
         bottom_band = band[:, : band.shape[1] // 2].copy()
-
-        # print(
-        #     f"Original shapes - band: {band.shape}, top_band: {top_band.shape}, bottom_band: {bottom_band.shape}"
-        # )
 
         top_center = top_band.shape[1] // 2
         bottom_center = bottom_band.shape[1] // 2
@@ -1213,61 +867,25 @@ def image_to_iris_code_2(
         else:
             bottom_band_cropped = bottom_band
 
-        # print(
-        #     f"Cropped shapes - top_band: {top_band_cropped.shape}, bottom_band: {bottom_band_cropped.shape}",
-        #     end=" ",
-        # )
         combined_band = np.concatenate((bottom_band_cropped, top_band_cropped), axis=1)
-        # print(f"Combined band shape: {combined_band.shape}")
         cropped_bands.append(combined_band.copy())
 
     cropped_bands_rescaled = np.stack(
         [downsample_to_128(b) for b in cropped_bands], axis=0
     )
-
-    # fig, axes = plt.subplots(
-    #     nrows=8, ncols=3, figsize=(8, 16), gridspec_kw={"hspace": 0.05, "wspace": 0.05}
-    # )
-
-    # for i in range(8):
-    #     # original
-    #     ax = axes[i, 0]
-    #     ax.imshow(bands[i], cmap="gray", aspect="auto")
-    #     ax.axis("off")
-    #     ax.set_title(f"Band {i}: original", pad=2, fontsize=8)
-
-    #     # cropped
-    #     ax = axes[i, 1]
-    #     ax.imshow(cropped_bands[i], cmap="gray", aspect="auto")
-    #     ax.axis("off")
-    #     ax.set_title(f"Band {i}: cropped", pad=2, fontsize=8)
-
-    #     # rescaled (1×128)
-    #     ax = axes[i, 2]
-    #     ax.imshow(cropped_bands_rescaled[i], cmap="gray", aspect="auto")
-    #     ax.axis("off")
-    #     ax.set_title(f"Band {i}: rescaled", pad=2, fontsize=8)
-
-    # # 2) optionally tighten margins even more
-    # plt.subplots_adjust(top=0.98, bottom=0.02, left=0.02, right=0.98)
-    # plt.show()
     cropped_bands_rescaled = np.array(cropped_bands_rescaled, dtype=float)
     cropped_bands_rescaled = img_as_float(cropped_bands_rescaled)
 
-    iris_codes = []  # tu wpadnie 8 kodów, każdy jako tablica (128, 2)
+    iris_codes = []
 
-    # dobieramy częstotliwość falki Gabor: eksperymentuj z 0.2–0.5
-    frequency = 0.25
+    frequency = gabor_frequency
 
     for band in cropped_bands_rescaled:
-        # band ma kształt (1, 128)
         real_resp, imag_resp = gabor(band, frequency=frequency)
 
-        # spłaszczenie do wektora długości 128
         real_line = real_resp.ravel()
         imag_line = imag_resp.ravel()
 
-        # fazowa binar­yzacja → dwie kolumny: [real>0, imag>0]
         code = np.zeros((real_line.size, 2), dtype=np.uint8)
         code[:, 0] = (real_line > 0).astype(np.uint8)
         code[:, 1] = (imag_line > 0).astype(np.uint8)
@@ -1275,13 +893,7 @@ def image_to_iris_code_2(
         iris_codes.append(code)
 
     iris_codes = np.array(iris_codes)
-    # wynik: (8, 128, 2) → każdy band to 128 par bitów (kod tęczówki)
-    # print("iris_codes shape:", iris_codes.shape)
-
-    # 1) swap the last two axes → shape (8, 2, 128)
     tmp = iris_codes.transpose(0, 2, 1)
-
-    # 2) merge the first two axes → shape (16, 128)
     iris_codes_2row = tmp.reshape(-1, tmp.shape[-1])
 
     if plot_iris_code:
