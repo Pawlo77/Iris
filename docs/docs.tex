@@ -165,7 +165,7 @@ W celu poprawy jakości detekcji źrenicy, zastosowano filtr wyostrzający w po�
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\linewidth]{figures/eye_filters_many.png}
+    \includegraphics[width=0.7\linewidth]{figures/eye_filters_many.png}
     \caption{Zastosowanie filtrów poprawiających kontrast oraz wyostrzenie obrazu dla lepszej segmentacji źrenicy.}
     \label{fig:eye_filters_many}
 \end{figure}
@@ -179,7 +179,7 @@ Następnie, dla zsegmentowanych binarnych obrazów źrenicy, wykonano projekcje 
     \label{fig:pupils_projections_many}
 \end{figure}
 
-Ostateczny rezultat detekcji źrenicy, wraz z naniesionym środkiem i promieniem, zaprezentowano na ilustracji \Cref{fig:pupils_detected_many}. Rysowane okręgi reprezentują wykrytą granicę źrenicy dla różnych obrazów w zbiorze danych.
+Ostateczny rezultat detekcji źrenicy, wraz z naniesionym środkiem i promieniem, zaprezentowano na ilustracji \Cref{fig:pupils_detected_many}. Rysowane okręgi reprezentują wykrytą granicę źrenicy dla różnych obrazów w zbiorze danych. W niektórych przypadkach granice źrenic mogą wydawać się trochę mniejsze od rzeczywistych granic, co wynika z zastosowania operacji morfologicznych. Eksperymenty niezawarte w tym sprawozdaniu wykazały jednak wyżość takiego rozwiązania nad rozwiązaniami dokładnie wyznaczającymi granicę dla zbioru danych "MMU Iris Dataset", ponieważ zdjęcia w nim zawarte mają w wielu przypadkach wyraźne refleksy świetlne zaburzające powodującą błędy w dokładnej detekcji.
 
 \begin{figure}[H]
     \centering
@@ -208,7 +208,7 @@ Dla wizualizacji końcowego efektu detekcji, przygotowano ilustrację \Cref{fig:
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\linewidth]{figures/irises_detected_many.png}
+    \includegraphics[width=0.7\linewidth]{figures/irises_detected_many.png}
     \caption{Ostateczne wykrycie granic tęczówek w zestawie danych. Pokazano oryginalne obrazy oraz odpowiadające im segmentacje z zaznaczoną granicą tęczówki.}
     \label{fig:irises_detected_many}
 \end{figure}
@@ -228,7 +228,7 @@ Przekształcenie polega na rozprostowaniu pierścienia tęczówki na obraz prost
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{figures/final_comphrasion.png}
+    \includegraphics[width=0.7\linewidth]{figures/final_comphrasion.png}
     \caption{Wizualizacja procesu wycinania tęczówki. Widoczne granice źrenicy i tęczówki, ich maski binarne oraz wyodrębniona tęczówka w postaci rozprostowanego obrazu.}
     \label{fig:final_comparison}
 \end{figure}
