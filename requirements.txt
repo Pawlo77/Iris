@@ -1,0 +1,4 @@
+kagglehub==0.3.12
+matplotlib==3.8.4
+numpy==2.2.5
+skimage==0.0

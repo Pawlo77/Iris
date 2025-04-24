@@ -1,0 +1,382 @@
+[
+    {
+        "label": "copy",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "copy",
+        "description": "copy",
+        "detail": "copy",
+        "documentation": {}
+    },
+    {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "ThreadPoolExecutor",
+        "importPath": "concurrent.futures",
+        "description": "concurrent.futures",
+        "isExtraImport": true,
+        "detail": "concurrent.futures",
+        "documentation": {}
+    },
+    {
+        "label": "Union",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Tuple",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "matplotlib.pyplot",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "matplotlib.pyplot",
+        "description": "matplotlib.pyplot",
+        "detail": "matplotlib.pyplot",
+        "documentation": {}
+    },
+    {
+        "label": "numpy",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "numpy",
+        "description": "numpy",
+        "detail": "numpy",
+        "documentation": {}
+    },
+    {
+        "label": "as_strided",
+        "importPath": "numpy.lib.stride_tricks",
+        "description": "numpy.lib.stride_tricks",
+        "isExtraImport": true,
+        "detail": "numpy.lib.stride_tricks",
+        "documentation": {}
+    },
+    {
+        "label": "img_as_float",
+        "importPath": "skimage",
+        "description": "skimage",
+        "isExtraImport": true,
+        "detail": "skimage",
+        "documentation": {}
+    },
+    {
+        "label": "get_sliding_windows",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_sliding_windows(image: np.ndarray, kernel_shape: Tuple[int, int]) -> np.ndarray:\n    \"\"\"\n    Create a sliding window view of the image for efficient morphological operations.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input image.\n    kernel_shape : tuple of int\n        Shape of the kernel (height, width).\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "erosion",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def erosion(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Perform erosion on the input image using the given kernel.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input binary image.\n    kernel : numpy.ndarray\n        Structuring element (binary kernel).\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "dilation",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def dilation(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Perform dilation on the input image using the given kernel.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input binary image.\n    kernel : numpy.ndarray\n        Structuring element (binary kernel).\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "opening",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def opening(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Perform opening on the input image using the given kernel.\n    Opening is defined as erosion followed by dilation.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input binary image.\n    kernel : numpy.ndarray\n        Structuring element (binary kernel).",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "closing",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def closing(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Perform closing on the input image using the given kernel.\n    Closing is defined as dilation followed by erosion.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input binary image.\n    kernel : numpy.ndarray\n        Structuring element (binary kernel).",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "contrast_filter",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def contrast_filter(image: np.ndarray, factor: float = 2.0) -> np.ndarray:\n    \"\"\"\n    Apply a contrast filter to the input image.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input grayscale image.\n    factor : float, optional\n        Contrast adjustment factor. Values > 1 increase contrast, values between 0 and 1 decrease contrast.\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "sharpen",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def sharpen(image: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Apply a sharpening filter to the input image.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input grayscale image.\n    Returns\n    -------\n    numpy.ndarray",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "averaging_filter",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def averaging_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:\n    \"\"\"\n    Apply an averaging filter to the input image.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input grayscale image.\n    kernel_size : int, optional\n        Size of the averaging kernel (must be odd).\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "sobel_filter",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def sobel_filter(image: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Apply the Sobel filter to detect edges in an image.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input grayscale image.\n    Returns\n    -------\n    numpy.ndarray",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "circular_kernel",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def circular_kernel(radius: int) -> np.ndarray:\n    \"\"\"\n    Create a circular kernel with a given radius.\n    Parameters\n    ----------\n    radius : int\n        Radius of the circle.\n    Returns\n    -------\n    numpy.ndarray",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "transform_pupil_img",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def transform_pupil_img(img: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Transform the image of the pupil.\n    Parameters\n    ----------\n    img : numpy.ndarray\n        Image of the pupil.\n    Returns\n    -------\n    numpy.ndarray",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "transform_pupil_imgs",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def transform_pupil_imgs(imgs: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Transform pupil images in parallel.\n    Parameters\n    ----------\n    imgs : numpy.ndarray\n        Array of images to transform.\n    Returns\n    -------\n    numpy.ndarray",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "analyse_pupil_projection",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def analyse_pupil_projection(vector: np.ndarray) -> Union[Tuple[int, int], int]:\n    \"\"\"\n    Find the maximum non-zero window around the argmax in a 1D vector.\n    Parameters\n    ----------\n    vector : numpy.ndarray\n        Input 1D array.\n    Returns\n    -------\n    tuple of int or int",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "get_radial_projection",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_radial_projection(image: np.ndarray, center: Tuple[int, int]) -> np.ndarray:\n    \"\"\"\n    Compute the radial projection of an image by summing pixel intensities at increasing radii.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input grayscale or binary image.\n    center : tuple of int\n        (x, y) coordinates of the center.\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "get_pupil",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_pupil(img: np.ndarray) -> Tuple[Tuple[int, int], int]:\n    \"\"\"\n    Detect the pupil center and radius based on projection peaks.\n    Parameters\n    ----------\n    img : numpy.ndarray\n        Binary or grayscale image.\n    Returns\n    -------\n    tuple",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "get_pupils",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_pupils(imgs: np.ndarray) -> List[Tuple[Tuple[int, int], int]]:\n    \"\"\"\n    Detect pupils in parallel.\n    Parameters\n    ----------\n    imgs : numpy.ndarray\n        Array of images to process.\n    Returns\n    -------\n    list",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "analyse_iris_projection",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def analyse_iris_projection(center: int, pupil_radius: int, vector: np.ndarray) -> int:\n    \"\"\"\n    Find the maximum non-zero window around the argmax in a 1D vector for iris detection.\n    Uses the property that the iris radius cannot exceed 5 times the pupil radius.\n    Parameters\n    ----------\n    center : int\n         Center position in the vector.\n    pupil_radius : int\n         Radius of the pupil.",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "mask_boundary",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def mask_boundary(image: np.ndarray, k: int) -> np.ndarray:\n    \"\"\"\n    Set pixels within k pixels from the image boundary to 0.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input image.\n    k : int\n        Number of pixels from the boundary to mask.\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "mask_circle",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def mask_circle(\n    image: np.ndarray, center: Tuple[int, int], radius: float, inside: bool = True\n) -> np.ndarray:\n    \"\"\"\n    Mask pixels inside or outside a given circle.\n    Parameters\n    ----------\n    image : numpy.ndarray\n        Input image.\n    center : tuple of int",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "transform_iris_img",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def transform_iris_img(\n    img: np.ndarray, pupil_dt: Tuple[Tuple[int, int], int]\n) -> np.ndarray:\n    \"\"\"\n    Transform the image of the iris using the pupil detection information.\n    Parameters\n    ----------\n    img : numpy.ndarray\n        Image of the iris.\n    pupil_dt : tuple",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "transform_iris_imgs",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def transform_iris_imgs(\n    imgs: np.ndarray, pupils_dt: List[Tuple[Tuple[int, int], int]]\n) -> np.ndarray:\n    \"\"\"\n    Transform iris images in parallel using pupil detection information.\n    Parameters\n    ----------\n    imgs : numpy.ndarray\n        Array of iris images to transform.\n    pupils_dt : list",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "get_iris",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_iris(\n    img: np.ndarray, pupil_dt: Tuple[Tuple[int, int], int]\n) -> Tuple[Tuple[int, int], int]:\n    \"\"\"\n    Detect the iris center and radius based on projection peaks.\n    Parameters\n    ----------\n    img : numpy.ndarray\n        Binary or grayscale iris image.\n    pupil_dt : tuple",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "get_irises",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_irises(\n    imgs: np.ndarray, pupils_dt: List[Tuple[Tuple[int, int], int]]\n) -> List[Tuple[Tuple[int, int], int]]:\n    \"\"\"\n    Detect irises in parallel.\n    Parameters\n    ----------\n    imgs : numpy.ndarray\n        Array of iris images.\n    pupils_dt : list",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "unwrap_annular_segment",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def unwrap_annular_segment(\n    image: np.ndarray,\n    center: Tuple[int, int],\n    radius_1: float,\n    radius_2: float,\n    theta_range: Tuple[int, int] = (0, 360),\n    output_shape: Tuple[int, int] = (50, 150),\n) -> np.ndarray:\n    \"\"\"\n    Unwrap an annular segment from a circular region into a rectangular image.",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "get_irises_parts",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_irises_parts(\n    imgs: np.ndarray,\n    pupils_dt: List[Tuple[Tuple[int, int], int]],\n    iris_dt: List[Tuple[Tuple[int, int], int]],\n) -> np.ndarray:\n    \"\"\"\n    Extract parts of the iris images in parallel.\n    Parameters\n    ----------\n    imgs : numpy.ndarray",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "save_img",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def save_img(\n    img: np.ndarray,\n    iris_img: np.ndarray,\n    pupil_img: np.ndarray,\n    iris_part_img: np.ndarray,\n    center: Tuple[int, int],\n    iris_radius: float,\n    pupil_radius: float,\n    label: str,\n    images_path: str,",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "create_directories",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def create_directories(base_path: str, subdirs: List[str]) -> None:\n    \"\"\"\n    Create directories for each subdirectory under the base path.\n    Parameters\n    ----------\n    base_path : str\n        The base directory path.\n    subdirs : list of str\n        List of subdirectory names.\n    \"\"\"",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "save_imgs",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def save_imgs(\n    imgs: List[np.ndarray],\n    iris_imgs: List[np.ndarray],\n    pupil_imgs: List[np.ndarray],\n    irises_parts: List[np.ndarray],\n    irises: List[Tuple[Tuple[int, int], int]],\n    pupils: List[Tuple[Any, int]],\n    labels: List[str],\n) -> None:\n    \"\"\"",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "downsample_to_128",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def downsample_to_128(band: np.ndarray) -> np.ndarray:\n    \"\"\"\n    Downsample a 1D signal to 128 columns.\n    Parameters\n    ----------\n    band : numpy.ndarray\n        Input 2D array with shape (height, width) or (height, ...).\n    Returns\n    -------\n    numpy.ndarray",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "gabor",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def gabor(band: np.ndarray, frequency: float = 1.0) -> Tuple[np.ndarray, np.ndarray]:\n    \"\"\"\n    Apply a Gabor filter to a 1D signal.\n    Parameters\n    ----------\n    band : numpy.ndarray\n        Input 1D array (or 2D array with shape (1, N)).\n    frequency : float, optional\n        Frequency of the sinusoidal component.\n    Returns",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "image_to_iris_code",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def image_to_iris_code(\n    input_image: np.ndarray,\n    number_of_bands: int = 8,\n    plot_iris_code: bool = False,\n    gabor_frequency: float = 0.25,\n) -> np.ndarray:\n    \"\"\"\n    Generate an iris code from the input image using Gabor filters.\n    Parameters\n    ----------",
+        "detail": "utils",
+        "documentation": {}
+    },
+    {
+        "label": "get_cropped_bands_rescaled",
+        "kind": 2,
+        "importPath": "utils",
+        "description": "utils",
+        "peekOfCode": "def get_cropped_bands_rescaled(\n    input_image: np.ndarray,\n    plot: bool = False,\n    number_of_bands: int = 8,\n    plot_iris_code: bool = False,\n    gabor_frequency: float = 0.25,\n) -> np.ndarray:\n    \"\"\"\n    Process and rescale input image bands for iris recognition.\n    Parameters",
+        "detail": "utils",
+        "documentation": {}
+    }
+]
